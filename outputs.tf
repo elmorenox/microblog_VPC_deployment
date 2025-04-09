@@ -19,11 +19,6 @@ output "monitoring_public_ip" {
   value       = aws_instance.monitoring.public_ip
 }
 
-output "ssh_key_path" {
-  description = "Path to the SSH private key"
-  value       = local_file.private_key.filename
-}
-
 output "jenkins_initial_password_cmd" {
   description = "Command to get Jenkins initial admin password"
   value       = "SSH to the Jenkins server and run: sudo cat /var/lib/jenkins/secrets/initialAdminPassword"
