@@ -15,12 +15,17 @@ sudo apt install -y git python3 python3-pip python3-venv
 # Save Application Server IP to a file
 echo "${app_server_ip}" > /home/ubuntu/app_server_ip.txt
 
+# Save the private key for connecting to app server
+mkdir -p /home/ubuntu/.ssh
+echo "${private_key_content}" > /home/ubuntu/.ssh/id_rsa
+chmod 600 /home/ubuntu/.ssh/id_rsa
+chown ubuntu:ubuntu /home/ubuntu/.ssh/id_rsa
+
 # Configure Nginx
 cat > /tmp/nginx.conf << EOL
 server {
     listen 80;
     server_name _;
-
     location / {
         proxy_pass http://${app_server_ip}:5000;
         proxy_set_header Host \$host;
@@ -35,35 +40,12 @@ sudo mkdir -p /etc/nginx/sites-enabled
 sudo cp /tmp/nginx.conf /etc/nginx/sites-available/default
 sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 
-# Create setup.sh script that uses the EC2 key
-cat > /home/ubuntu/setup.sh << 'EOL'
-#!/bin/bash
+# Copy setup.sh and start_app.sh templates
+cp /tmp/setup.sh /home/ubuntu/setup.sh
+cp /tmp/start_app.sh /home/ubuntu/start_app.sh
 
-# Get Application Server IP
-APP_SERVER_IP=$(cat /home/ubuntu/app_server_ip.txt)
-
-# SSH into the Application Server using the EC2 key
-ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@$APP_SERVER_IP "bash -s" < /home/ubuntu/start_app.sh
-
-# Check if the application is running
-echo "Checking if the application is running..."
-sleep 10
-curl -s http://$APP_SERVER_IP:5000
-
-if [ $? -eq 0 ]; then
-  echo "Application is running successfully!"
-else
-  echo "Failed to connect to the application. Please check the logs."
-  exit 1
-fi
-EOL
+# Make scripts executable
 chmod +x /home/ubuntu/setup.sh
-
-# Create start_app.sh file (contents remain the same as original)
-cat > /home/ubuntu/start_app.sh << 'EOL'
-#!/bin/bash
-# Original contents here...
-EOL
 chmod +x /home/ubuntu/start_app.sh
 
 # Restart Nginx

@@ -29,11 +29,6 @@ variable "availability_zone" {
   default     = "us-east-1a"
 }
 
-variable "ssh_key_name" {
-  description = "SSH key name"
-  type        = string
-}
-
 variable "ec2_ami" {
   description = "AMI ID for EC2 instances"
   type        = string
@@ -56,4 +51,14 @@ variable "aws_secret_key" {
   description = "AWS Secret Key"
   type        = string
   sensitive   = true
+}
+
+variable "private_key_path" {
+  description = "Path to the private key file to use for SSH connections between servers"
+  type        = string
+}
+
+variable "ssh_key_name" {
+  description = "Name of the existing SSH key pair in AWS"
+  type        = string
 }

@@ -5,22 +5,6 @@ provider "aws" {
   secret_key = var.aws_secret_key
 }
 
-# Create SSH key pair
-resource "tls_private_key" "ssh_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "deployment_key" {
-  key_name   = var.ssh_key_name
-  public_key = tls_private_key.ssh_key.public_key_openssh
-}
-
-resource "local_file" "private_key" {
-  content         = tls_private_key.ssh_key.private_key_pem
-  filename        = "deployment-key.pem"
-  file_permission = "0600"
-}
 
 # VPC and Network Resources
 resource "aws_vpc" "custom_vpc" {
@@ -257,32 +241,60 @@ resource "aws_security_group" "monitoring_sg" {
 
 
 # EC2 Instances
+# EC2 Instances - just use the existing key name
 resource "aws_instance" "jenkins" {
   ami                    = var.ec2_ami
   instance_type          = "t3.medium"
-  key_name               = aws_key_pair.deployment_key.key_name
+  key_name               = var.ssh_key_name  # Simply reference the existing key name
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
-  subnet_id              = aws_subnet.public_subnet.id  # Add this line to explicitly place in public subnet
+  subnet_id              = aws_subnet.public_subnet.id
 
-  user_data = file("scripts/jenkins_setup.sh")
-  
-  depends_on = [aws_security_group.jenkins_sg]  # Add explicit dependency
+  # Add the private key to user data
+  user_data = templatefile("scripts/jenkins_setup.sh", {
+    private_key_content = file(var.private_key_path)
+  })
 
   tags = {
     Name = "Jenkins"
   }
 }
 
+
 resource "aws_instance" "web_server" {
   ami                    = var.ec2_ami
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.deployment_key.key_name
+  key_name               = var.ssh_key_name
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
+  # Copy template files to the instance
+  provisioner "file" {
+    source      = "templates/setup.sh"
+    destination = "/tmp/setup.sh"
+    
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = self.public_ip
+    }
+  }
+  
+  provisioner "file" {
+    source      = "templates/start_app.sh"
+    destination = "/tmp/start_app.sh"
+    
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = self.public_ip
+    }
+  }
+
   user_data = templatefile("scripts/web_server_setup.sh", {
     app_server_ip = aws_instance.app_server.private_ip,
-    ssh_key_name = var.ssh_key_name
+    private_key_content = file(var.private_key_path)
   })
 
   depends_on = [aws_route_table_association.public_rta, aws_instance.app_server]
@@ -295,7 +307,7 @@ resource "aws_instance" "web_server" {
 resource "aws_instance" "app_server" {
   ami                    = var.ec2_ami
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.deployment_key.key_name
+  key_name               = var.ssh_key_name
   subnet_id              = aws_subnet.private_subnet.id
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
@@ -313,7 +325,7 @@ resource "aws_instance" "app_server" {
 resource "aws_instance" "monitoring" {
   ami                    = var.ec2_ami
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.deployment_key.key_name
+  key_name               = var.ssh_key_name
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.monitoring_sg.id]
 
