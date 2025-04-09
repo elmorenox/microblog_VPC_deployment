@@ -14,34 +14,6 @@ if [ ! -f "$ROOT_DIR/main.tf" ] || [ ! -f "$ROOT_DIR/variables.tf" ]; then
     exit 1
 fi
 
-# Check if Terraform is installed
-if ! command -v terraform &> /dev/null; then
-    echo "Terraform is not installed. Please install Terraform and try again."
-    exit 1
-fi
-
-# Create terraform.tfvars if it doesn't exist
-if [ ! -f "$ROOT_DIR/terraform.tfvars.example" ] && [ ! -f "$ROOT_DIR/terraform.tfvars" ]; then
-    echo "Creating terraform.tfvars file..."
-    cat > "$ROOT_DIR/terraform.tfvars" << EOL
-region              = "us-east-1"
-vpc_cidr            = "10.0.0.0/16"
-public_subnet_cidr  = "10.0.1.0/24"
-private_subnet_cidr = "10.0.2.0/24"
-availability_zone   = "us-east-1a"
-ssh_key_name        = "deployment-key"
-ec2_ami             = "ami-053b0d53c279acc90"
-github_repo         = "https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git"
-aws_access_key      = ""
-aws_secret_key      = ""
-EOL
-fi
-
-if [ -f "$ROOT_DIR/terraform.tfvars.example" ] && [ ! -f "$ROOT_DIR/terraform.tfvars" ]; then
-    cp "$ROOT_DIR/terraform.tfvars.example" "$ROOT_DIR/terraform.tfvars"
-    echo "Created terraform.tfvars from example file. Please edit it with your credentials."
-fi
-
 # Ask for AWS credentials
 read -p "Enter your AWS Access Key (leave blank to skip): " AWS_ACCESS_KEY
 read -p "Enter your AWS Secret Key (leave blank to skip): " AWS_SECRET_KEY
@@ -63,23 +35,6 @@ fi
 echo "Checking Terraform files in current directory:"
 ls -la $ROOT_DIR/*.tf
 
-# Create aws_credentials.tf if it doesn't exist
-if [ ! -f "$ROOT_DIR/aws_credentials.tf" ]; then
-    echo "Creating aws_credentials.tf file..."
-    cat > "$ROOT_DIR/aws_credentials.tf" << EOL
-variable "aws_access_key" {
-  description = "AWS Access Key"
-  type        = string
-  sensitive   = true
-}
-
-variable "aws_secret_key" {
-  description = "AWS Secret Key"
-  type        = string
-  sensitive   = true
-}
-EOL
-fi
 
 # Check if provider block needs to be updated in main.tf
 if ! grep -q "access_key" "$ROOT_DIR/main.tf"; then

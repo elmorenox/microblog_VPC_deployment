@@ -1,7 +1,7 @@
 pipeline {
   agent any
   environment {
-    WEB_SERVER_IP = sh(script: 'curl -s http://169.254.169.254/latest/meta-data/public-ipv4', returnStdout: true).trim()
+    WEB_SERVER_IP = '54.145.48.96'
   }
   stages {
         stage ('Build') {
@@ -50,11 +50,11 @@ pipeline {
             steps {
                 sh '''#!/bin/bash
                 # Copy deployment scripts to the Web Server
-                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/setup.sh ec2-user@${WEB_SERVER_IP}:/home/ec2-user/
-                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/start_app.sh ec2-user@${WEB_SERVER_IP}:/home/ec2-user/
+                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/setup.sh ubuntu@${WEB_SERVER_IP}:/home/ubuntu/
+                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/start_app.sh ubuntu@${WEB_SERVER_IP}:/home/ubuntu/
                 
                 # Execute setup script on Web Server
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ec2-user@${WEB_SERVER_IP} 'chmod +x /home/ec2-user/setup.sh && /home/ec2-user/setup.sh'
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@${WEB_SERVER_IP} 'chmod +x /home/ubuntu/setup.sh && /home/ubuntu/setup.sh'
                 
                 # Verify deployment
                 echo "Verifying deployment..."

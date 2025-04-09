@@ -3,11 +3,37 @@
 # This script configures Jenkins with the necessary plugins and the Multibranch Pipeline job
 # It should be run on the Jenkins server after it's fully initialized
 
+# Install required packages for Python testing
+echo "Installing Python dependencies..."
+sudo apt update
+sudo apt install -y python3-venv python3-pip unzip
+sudo pip3 install pytest
+
+# Install OWASP Dependency Check
+echo "Installing OWASP Dependency Check..."
+cd /opt/
+sudo wget https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
+cd dependency-check
+sudo unzip -j dependency-check-6.5.3-release.zip
+sudo chmod -R 755 /opt/dependency-check
+sudo chown -R jenkins:jenkins /opt/dependency-check
+
 # Set the admin password
 ADMIN_PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
+echo "Jenkins initial admin password: $ADMIN_PASSWORD"
 
 # Download Jenkins CLI
-wget http://localhost:8080/jnlpJars/jenkins-cli.jar
+wget -q -O jenkins-cli.jar http://localhost:8080/jnlpJars/jenkins-cli.jar
+
+# Wait for Jenkins to be fully up
+echo "Waiting for Jenkins to be fully up..."
+until curl -s -f http://localhost:8080 > /dev/null; do
+    echo "Waiting for Jenkins to start..."
+    sleep 5
+done
+sleep 10  # Additional wait to ensure Jenkins is ready
+
+chmod +x jenkins-cli.jar
 
 # Install necessary plugins
 echo "Installing necessary plugins..."
@@ -19,11 +45,18 @@ java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD 
 
 # Wait for Jenkins to restart
 echo "Waiting for Jenkins to restart..."
-sleep 60
+
+sleep 20  # Additional wait to ensure Jenkins is ready
+
+# Get GitHub repository URL
+read -p "Enter your GitHub repository URL (e.g., https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git): " GITHUB_REPO
+if [ -z "$GITHUB_REPO" ]; then
+    GITHUB_REPO="https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git"
+fi
 
 # Create Multibranch Pipeline job
 echo "Creating Multibranch Pipeline job..."
-cat > job_config.xml << EOL
+sed "s|https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git|$GITHUB_REPO|g" > job_config.xml << 'EOL'
 <?xml version='1.1' encoding='UTF-8'?>
 <org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject plugin="workflow-multibranch@2.26">
   <actions/>
@@ -57,7 +90,7 @@ cat > job_config.xml << EOL
     </com.cloudbees.hudson.plugins.folder.computed.PeriodicFolderTrigger>
   </triggers>
   <disabled>false</disabled>
-  <sources class="jenkins.branch.MultiBranchProject\$BranchSourceList" plugin="branch-api@2.7.0">
+  <sources class="jenkins.branch.MultiBranchProject$BranchSourceList" plugin="branch-api@2.7.0">
     <data>
       <jenkins.branch.BranchSource>
         <source class="jenkins.plugins.git.GitSCMSource" plugin="git@4.11.0">
@@ -82,40 +115,10 @@ cat > job_config.xml << EOL
 </org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject>
 EOL
 
-# Create Jenkins job
-java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD create-job workload_4 < job_config.xml
 
-# Set up Dependency Check plugin
-echo "Setting up Dependency Check plugin..."
-cat > dependency_check_config.xml << EOL
-<?xml version='1.1' encoding='UTF-8'?>
-<org.jenkinsci.plugins.DependencyCheck.DependencyCheckDescriptor plugin="dependency-check-jenkins-plugin@5.1.1">
-  <globalSuppressionFile></globalSuppressionFile>
-  <suppressionFilePath></suppressionFilePath>
-  <hintsFilePath></hintsFilePath>
-  <zipExtensions></zipExtensions>
-  <scanAll>false</scanAll>
-  <scanOnlyInChanges>false</scanOnlyInChanges>
-  <jarPath></jarPath>
-  <isAutoupdateDisabled>false</isAutoupdateDisabled>
-  <vulnDbDir></vulnDbDir>
-  <dataMirrorPlus>false</dataMirrorPlus>
-  <dataMirrorPlusUrl></dataMirrorPlusUrl>
-  <dataMirrorPlusCredentialsId></dataMirrorPlusCredentialsId>
-  <dataMirror>false</dataMirror>
-  <dataMirrorUrl></dataMirrorUrl>
-  <dataMirrorCredentialsId></dataMirrorCredentialsId>
-  <installations>
-    <org.jenkinsci.plugins.DependencyCheck.DependencyCheckInstallation>
-      <name>DP-Check</name>
-      <home>/opt/dependency-check</home>
-      <properties />
-    </org.jenkinsci.plugins.DependencyCheck.DependencyCheckInstallation>
-  </installations>
-</org.jenkinsci.plugins.DependencyCheck.DependencyCheckDescriptor>
-EOL
-
-# Configure Dependency Check plugin
-java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD groovy = < dependency_check_config.xml
 
 echo "Jenkins configuration complete!"
+echo "Your Multibranch Pipeline 'workload_4' has been created with the following repository: $GITHUB_REPO"
+echo "Initial admin password: $ADMIN_PASSWORD"
+echo ""
+echo "Make sure your Jenkinsfile has the correct configurations for Python virtual environment and testing!"

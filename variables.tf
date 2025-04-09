@@ -31,7 +31,6 @@ variable "availability_zone" {
 variable "ssh_key_name" {
   description = "SSH key name"
   type        = string
-  default     = "deployment-key"
 }
 
 variable "ec2_ami" {
@@ -43,7 +42,7 @@ variable "ec2_ami" {
 variable "github_repo" {
   description = "GitHub repository URL"
   type        = string
-  default     = "https://github.com/elmoreno_X/microblog_VPC_deployment.git"
+  default     = "https://github.com/elmorenox/microblog_VPC_deployment.git"
 }
 
 variable "aws_access_key" {
