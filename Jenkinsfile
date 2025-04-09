@@ -1,4 +1,3 @@
-# jenkinsfile
 pipeline {
   agent any
   environment {

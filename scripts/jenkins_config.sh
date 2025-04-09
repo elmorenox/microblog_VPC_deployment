@@ -14,6 +14,8 @@ sudo pip3 install pytest
 
 # Install OWASP Dependency Check
 echo "Installing OWASP Dependency Check..."
+sudo rm -r /opt
+sudo mkdir /opt
 cd /opt/
 sudo wget https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
 sudo unzip dependency-check-6.5.3-release.zip
@@ -33,10 +35,6 @@ sudo chmod +x jenkins-cli.jar
 
 # Wait for Jenkins to be fully up
 echo "Waiting for Jenkins to be fully up..."
-until curl -s -f http://localhost:8080 > /dev/null; do
-    echo "Waiting for Jenkins to start..."
-    sleep 5
-done
 sleep 10  # Additional wait to ensure Jenkins is ready
 
 # Install necessary plugins
@@ -117,6 +115,10 @@ sed "s|https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git|$GITHUB_REP
   </factory>
 </org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject>
 EOL
+
+echo "Creating job 'workload_4'..."
+java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD create-job workload_4 < job_config.xml
+
 
 echo "Jenkins configuration complete!"
 echo "Your Multibranch Pipeline 'workload_4' has been created with the following repository: $GITHUB_REPO"
