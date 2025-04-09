@@ -31,6 +31,7 @@ pipeline {
             steps {
                 sh '''#!/bin/bash
                 source venv/bin/activate
+                pip install pytest
                 py.test tests.py --verbose --junit-xml test-reports/results.xml
                 '''
             }
