@@ -1,0 +1,352 @@
+provider "aws" {
+  region     = var.region
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+}
+
+# Create SSH key pair
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "deployment_key" {
+  key_name   = var.ssh_key_name
+  public_key = tls_private_key.ssh_key.public_key_openssh
+}
+
+resource "local_file" "private_key" {
+  content         = tls_private_key.ssh_key.private_key_pem
+  filename        = "deployment-key.pem"
+  file_permission = "0600"
+}
+
+# VPC and Network Resources
+resource "aws_vpc" "custom_vpc" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name = "Custom-VPC"
+  }
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.custom_vpc.id
+
+  tags = {
+    Name = "Custom-IGW"
+  }
+}
+
+# Public Subnet
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = aws_vpc.custom_vpc.id
+  cidr_block              = var.public_subnet_cidr
+  map_public_ip_on_launch = true
+  availability_zone       = var.availability_zone
+
+  tags = {
+    Name = "Public-Subnet"
+  }
+}
+
+# Private Subnet
+resource "aws_subnet" "private_subnet" {
+  vpc_id            = aws_vpc.custom_vpc.id
+  cidr_block        = var.private_subnet_cidr
+  availability_zone = var.availability_zone
+
+  tags = {
+    Name = "Private-Subnet"
+  }
+}
+
+# Elastic IP for NAT Gateway
+resource "aws_eip" "nat_eip" {
+  domain = "vpc"
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# NAT Gateway
+resource "aws_nat_gateway" "nat_gw" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_subnet.id
+
+  tags = {
+    Name = "Custom-NAT-GW"
+  }
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# Public Route Table
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.custom_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "Public-Route-Table"
+  }
+}
+
+# Private Route Table
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.custom_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gw.id
+  }
+
+  tags = {
+    Name = "Private-Route-Table"
+  }
+}
+
+# Route Table Association - Public
+resource "aws_route_table_association" "public_rta" {
+  subnet_id      = aws_subnet.public_subnet.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+# Route Table Association - Private
+resource "aws_route_table_association" "private_rta" {
+  subnet_id      = aws_subnet.private_subnet.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+# Security Groups
+resource "aws_security_group" "jenkins_sg" {
+  name        = "jenkins_sg"
+  description = "Allow SSH and Jenkins traffic"
+  vpc_id      = aws_default_vpc.default.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Jenkins-SG"
+  }
+}
+
+resource "aws_security_group" "web_sg" {
+  name        = "web_sg"
+  description = "Allow SSH and HTTP traffic"
+  vpc_id      = aws_vpc.custom_vpc.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Web-Server-SG"
+  }
+}
+
+resource "aws_security_group" "app_sg" {
+  name        = "app_sg"
+  description = "Allow SSH and Flask traffic"
+  vpc_id      = aws_vpc.custom_vpc.id
+
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web_sg.id]
+  }
+
+  ingress {
+    from_port       = 5000
+    to_port         = 5000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "App-Server-SG"
+  }
+}
+
+resource "aws_security_group" "monitoring_sg" {
+  name        = "monitoring_sg"
+  description = "Allow SSH, Prometheus and Grafana traffic"
+  vpc_id      = aws_vpc.custom_vpc.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Monitoring-SG"
+  }
+}
+
+# Default VPC for Jenkins
+resource "aws_default_vpc" "default" {
+  tags = {
+    Name = "Default VPC"
+  }
+}
+
+# EC2 Instances
+resource "aws_instance" "jenkins" {
+  ami                    = var.ec2_ami
+  instance_type          = "t3.medium"
+  key_name               = aws_key_pair.deployment_key.key_name
+  vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+
+  user_data = file("scripts/jenkins_setup.sh")
+
+  tags = {
+    Name = "Jenkins"
+  }
+}
+
+resource "aws_instance" "web_server" {
+  ami                    = var.ec2_ami
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.deployment_key.key_name
+  subnet_id              = aws_subnet.public_subnet.id
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
+
+  user_data = templatefile("scripts/web_server_setup.sh", {
+    app_server_ip = aws_instance.app_server.private_ip,
+    app_server_key = tls_private_key.ssh_key.private_key_pem
+  })
+
+  depends_on = [aws_route_table_association.public_rta, aws_instance.app_server]
+
+  tags = {
+    Name = "Web_Server"
+  }
+}
+
+resource "aws_instance" "app_server" {
+  ami                    = var.ec2_ami
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.deployment_key.key_name
+  subnet_id              = aws_subnet.private_subnet.id
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+
+  user_data = templatefile("scripts/app_server_setup.sh", {
+    github_repo = var.github_repo
+  })
+
+  depends_on = [aws_route_table_association.private_rta]
+
+  tags = {
+    Name = "Application_Server"
+  }
+}
+
+resource "aws_instance" "monitoring" {
+  ami                    = var.ec2_ami
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.deployment_key.key_name
+  subnet_id              = aws_subnet.public_subnet.id
+  vpc_security_group_ids = [aws_security_group.monitoring_sg.id]
+
+  user_data = templatefile("scripts/monitoring_setup.sh", {
+    app_server_ip = aws_instance.app_server.private_ip
+  })
+
+  depends_on = [aws_route_table_association.public_rta, aws_instance.app_server]
+
+  tags = {
+    Name = "Monitoring"
+  }
+}
+
+# Outputs
+output "jenkins_public_ip" {
+  description = "The public IP address of the Jenkins server"
+  value       = aws_instance.jenkins.public_ip
+}
+
+output "web_server_public_ip" {
+  description = "The public IP address of the Web Server"
+  value       = aws_instance.web_server.public_ip
+}
+
+output "app_server_private_ip" {
+  description = "The private IP address of the Application Server"
+  value       = aws_instance.app_server.private_ip
+}
+
+output "monitoring_public_ip" {
+  description = "The public IP address of the Monitoring server"
+  value       = aws_instance.monitoring.public_ip
+}
