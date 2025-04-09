@@ -262,8 +262,11 @@ resource "aws_instance" "jenkins" {
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.deployment_key.key_name
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+  subnet_id              = aws_subnet.public_subnet.id  # Add this line to explicitly place in public subnet
 
   user_data = file("scripts/jenkins_setup.sh")
+  
+  depends_on = [aws_security_group.jenkins_sg]  # Add explicit dependency
 
   tags = {
     Name = "Jenkins"
