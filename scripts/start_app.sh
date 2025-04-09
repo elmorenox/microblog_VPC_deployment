@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# scripts/start_app.sh
 # Update system packages
 sudo apt update
 sudo apt upgrade -y

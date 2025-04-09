@@ -1,3 +1,4 @@
+# main.tf
 provider "aws" {
   region     = var.region
   access_key = var.aws_access_key
@@ -126,7 +127,7 @@ resource "aws_route_table_association" "private_rta" {
 resource "aws_security_group" "jenkins_sg" {
   name        = "jenkins_sg"
   description = "Allow SSH and Jenkins traffic"
-  vpc_id      = aws_default_vpc.default.id
+  vpc_id      = aws_vpc.custom_vpc.id 
 
   ingress {
     from_port   = 22
@@ -254,12 +255,6 @@ resource "aws_security_group" "monitoring_sg" {
   }
 }
 
-# Default VPC for Jenkins
-resource "aws_default_vpc" "default" {
-  tags = {
-    Name = "Default VPC"
-  }
-}
 
 # EC2 Instances
 resource "aws_instance" "jenkins" {
@@ -284,7 +279,7 @@ resource "aws_instance" "web_server" {
 
   user_data = templatefile("scripts/web_server_setup.sh", {
     app_server_ip = aws_instance.app_server.private_ip,
-    app_server_key = tls_private_key.ssh_key.private_key_pem
+    ssh_key_name = var.ssh_key_name
   })
 
   depends_on = [aws_route_table_association.public_rta, aws_instance.app_server]

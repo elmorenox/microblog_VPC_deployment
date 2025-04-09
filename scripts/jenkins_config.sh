@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# scripts/jenkins_config.sh
 # This script configures Jenkins with the necessary plugins and the Multibranch Pipeline job
 # It should be run on the Jenkins server after it's fully initialized
 
@@ -33,6 +33,12 @@ until curl -s -f http://localhost:8080 > /dev/null; do
 done
 sleep 10  # Additional wait to ensure Jenkins is ready
 
+# Get the admin password
+ADMIN_PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
+echo "Jenkins initial admin password: $ADMIN_PASSWORD"
+
+# Download Jenkins CLI
+wget -q -O jenkins-cli.jar http://localhost:8080/jnlpJars/jenkins-cli.jar
 chmod +x jenkins-cli.jar
 
 # Install necessary plugins
@@ -45,8 +51,9 @@ java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD 
 
 # Wait for Jenkins to restart
 echo "Waiting for Jenkins to restart..."
+sleep 20
 
-sleep 20  # Additional wait to ensure Jenkins is ready
+# OWASP Dependency Check is already installed in jenkins_setup.sh, so we don't need to reinstall it
 
 # Get GitHub repository URL
 read -p "Enter your GitHub repository URL (e.g., https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git): " GITHUB_REPO

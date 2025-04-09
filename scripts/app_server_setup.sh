@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# scripts/app_server_setup.sh
 # Update system packages
 sudo apt update
 sudo apt upgrade -y

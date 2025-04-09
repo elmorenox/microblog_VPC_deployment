@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# scripts/setup.sh
 # Get Application Server IP (stored in a file by Terraform)
 APP_SERVER_IP=$(cat /home/ubuntu/app_server_ip.txt)
 
