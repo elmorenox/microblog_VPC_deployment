@@ -3,6 +3,9 @@
 # This script configures Jenkins with the necessary plugins and the Multibranch Pipeline job
 # It should be run on the Jenkins server after it's fully initialized
 
+# Store original directory
+ORIGINAL_DIR=$(pwd)
+
 # Install required packages for Python testing
 echo "Installing Python dependencies..."
 sudo apt update
@@ -13,10 +16,12 @@ sudo pip3 install pytest
 echo "Installing OWASP Dependency Check..."
 cd /opt/
 sudo wget https://github.com/jeremylong/DependencyCheck/releases/download/v6.5.3/dependency-check-6.5.3-release.zip
-cd dependency-check
-sudo unzip -j dependency-check-6.5.3-release.zip
+sudo unzip dependency-check-6.5.3-release.zip
 sudo chmod -R 755 /opt/dependency-check
 sudo chown -R jenkins:jenkins /opt/dependency-check
+
+# Return to original directory
+cd $ORIGINAL_DIR
 
 # Set the admin password
 ADMIN_PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
@@ -24,6 +29,7 @@ echo "Jenkins initial admin password: $ADMIN_PASSWORD"
 
 # Download Jenkins CLI
 wget -q -O jenkins-cli.jar http://localhost:8080/jnlpJars/jenkins-cli.jar
+sudo chmod +x jenkins-cli.jar
 
 # Wait for Jenkins to be fully up
 echo "Waiting for Jenkins to be fully up..."
@@ -32,14 +38,6 @@ until curl -s -f http://localhost:8080 > /dev/null; do
     sleep 5
 done
 sleep 10  # Additional wait to ensure Jenkins is ready
-
-# Get the admin password
-ADMIN_PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
-echo "Jenkins initial admin password: $ADMIN_PASSWORD"
-
-# Download Jenkins CLI
-wget -q -O jenkins-cli.jar http://localhost:8080/jnlpJars/jenkins-cli.jar
-chmod +x jenkins-cli.jar
 
 # Install necessary plugins
 echo "Installing necessary plugins..."
@@ -51,9 +49,7 @@ java -jar jenkins-cli.jar -s http://localhost:8080/ -auth admin:$ADMIN_PASSWORD 
 
 # Wait for Jenkins to restart
 echo "Waiting for Jenkins to restart..."
-sleep 20
-
-# OWASP Dependency Check is already installed in jenkins_setup.sh, so we don't need to reinstall it
+sleep 20  # Additional wait to ensure Jenkins is ready
 
 # Get GitHub repository URL
 read -p "Enter your GitHub repository URL (e.g., https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git): " GITHUB_REPO
@@ -121,8 +117,6 @@ sed "s|https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git|$GITHUB_REP
   </factory>
 </org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject>
 EOL
-
-
 
 echo "Jenkins configuration complete!"
 echo "Your Multibranch Pipeline 'workload_4' has been created with the following repository: $GITHUB_REPO"
