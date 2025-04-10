@@ -9,17 +9,12 @@ sudo apt install -y nginx
 sudo systemctl enable nginx
 sudo systemctl start nginx
 
-# Install Git and other packages
-sudo apt install -y git python3 python3-pip python3-venv
-
-# Save Application Server IP to a file
-echo "${app_server_ip}" > /home/ubuntu/app_server_ip.txt
-
 # Save the private key for connecting to app server
 mkdir -p /home/ubuntu/.ssh
 echo "${private_key_content}" > /home/ubuntu/.ssh/id_rsa
 chmod 600 /home/ubuntu/.ssh/id_rsa
 chown ubuntu:ubuntu /home/ubuntu/.ssh/id_rsa
+chown ubuntu:ubuntu /home/ubuntu/.ssh
 
 # Configure Nginx
 cat > /tmp/nginx.conf << EOL
@@ -40,13 +35,14 @@ sudo mkdir -p /etc/nginx/sites-enabled
 sudo cp /tmp/nginx.conf /etc/nginx/sites-available/default
 sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 
-# Copy setup.sh and start_app.sh templates
-cp /tmp/setup.sh /home/ubuntu/setup.sh
-cp /tmp/start_app.sh /home/ubuntu/start_app.sh
+# Save Application Server IP to a file (needed by setup.sh)
+echo "${app_server_ip}" > /home/ubuntu/app_server_ip.txt
+chown ubuntu:ubuntu /home/ubuntu/app_server_ip.txt
 
-# Make scripts executable
+# Download setup.sh from GitHub
+wget -O /home/ubuntu/setup.sh https://raw.githubusercontent.com/elmorenox/microblog_VPC_deployment/main/scripts/setup.sh
 chmod +x /home/ubuntu/setup.sh
-chmod +x /home/ubuntu/start_app.sh
+chown ubuntu:ubuntu /home/ubuntu/setup.sh
 
 # Restart Nginx
 sudo systemctl restart nginx

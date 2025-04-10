@@ -267,31 +267,6 @@ resource "aws_instance" "web_server" {
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-  # Copy template files to the instance
-  provisioner "file" {
-    source      = "templates/setup.sh"
-    destination = "/tmp/setup.sh"
-    
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = self.public_ip
-    }
-  }
-  
-  provisioner "file" {
-    source      = "templates/start_app.sh"
-    destination = "/tmp/start_app.sh"
-    
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = self.public_ip
-    }
-  }
-
   user_data = templatefile("scripts/web_server_setup.sh", {
     app_server_ip = aws_instance.app_server.private_ip,
     private_key_content = file(var.private_key_path)
@@ -311,9 +286,37 @@ resource "aws_instance" "app_server" {
   subnet_id              = aws_subnet.private_subnet.id
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
-  user_data = templatefile("scripts/app_server_setup.sh", {
-    github_repo = var.github_repo
-  })
+  # File provisioner to put start_app.sh directly on app server
+  provisioner "file" {
+    source      = "scripts/start_app.sh"
+    destination = "/home/ubuntu/start_app.sh"
+    
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = self.private_ip
+      bastion_host = aws_instance.web_server.public_ip
+      bastion_user = "ubuntu"
+      bastion_private_key = file(var.private_key_path)
+    }
+  }
+  
+  # Make script executable
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/ubuntu/start_app.sh"]
+    
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = self.private_ip
+      bastion_host = aws_instance.web_server.public_ip
+      bastion_user = "ubuntu"
+      bastion_private_key = file(var.private_key_path)
+    }
+  }
 
   depends_on = [aws_route_table_association.private_rta]
 

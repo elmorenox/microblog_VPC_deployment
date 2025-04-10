@@ -47,27 +47,12 @@ pipeline {
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-      stage ('Deploy') {
+        stage ('Deploy') {
             steps {
-                sh '''#!/bin/bash
-                # Copy deployment scripts to the Web Server
-                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/setup.sh ubuntu@${WEB_SERVER_IP}:/home/ubuntu/
-                scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa scripts/start_app.sh ubuntu@${WEB_SERVER_IP}:/home/ubuntu/
-                
-                # Execute setup script on Web Server
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@${WEB_SERVER_IP} 'chmod +x /home/ubuntu/setup.sh && /home/ubuntu/setup.sh'
-                
-                # Verify deployment
-                echo "Verifying deployment..."
-                curl -s http://${WEB_SERVER_IP}
-                
-                if [ $? -eq 0 ]; then
-                    echo "Deployment successful!"
-                else
-                    echo "Deployment verification failed"
-                    exit 1
-                fi
-                '''
+                sh """#!/bin/bash
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@${WEB_SERVER_IP} \
+                '/home/ubuntu/setup.sh'
+                """
             }
         }
     }

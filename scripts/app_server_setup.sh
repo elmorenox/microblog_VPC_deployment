@@ -14,10 +14,6 @@ mkdir -p /home/ubuntu/microblog
 mkdir -p /home/ubuntu/.ssh
 chmod 700 /home/ubuntu/.ssh
 
-# Create authorized_keys file
-touch /home/ubuntu/.ssh/authorized_keys
-chmod 600 /home/ubuntu/.ssh/authorized_keys
-
 # Save the GitHub repository URL (will be replaced by Terraform)
 echo "${github_repo}" > /home/ubuntu/github_repo.txt
 
