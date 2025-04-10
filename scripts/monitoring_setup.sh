@@ -103,6 +103,9 @@ EOL
 sudo cp /tmp/dashboard_provider.yml /opt/grafana/conf/provisioning/dashboards/
 
 # Create Grafana service
+# Update Grafana service section:
+
+# Create Grafana service with correct paths
 cat > /tmp/grafana.service << 'EOL'
 [Unit]
 Description=Grafana
@@ -111,13 +114,15 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/opt/grafana/bin/grafana-server \
+ExecStart=/opt/grafana/grafana-9.0.5/bin/grafana-server \
   --config=/opt/grafana/conf/defaults.ini \
-  --homepath=/opt/grafana
+  --homepath=/opt/grafana/grafana-9.0.5
 
 [Install]
 WantedBy=multi-user.target
 EOL
+
+sudo cp /tmp/grafana.service /etc/systemd/system/grafana.service
 
 sudo cp /tmp/grafana.service /etc/systemd/system/grafana.service
 
