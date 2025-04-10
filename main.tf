@@ -313,7 +313,7 @@ resource "aws_instance" "app_server" {
       user        = "ubuntu"
       private_key = file(var.private_key_path)
       host        = self.private_ip
-      bastion_host = aws_instance.web_server.public_ip
+      bastion_host = aws_instance.jenkins.public_ip
       bastion_user = "ubuntu"
       bastion_private_key = file(var.private_key_path)
     }
