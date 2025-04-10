@@ -287,31 +287,10 @@ resource "aws_instance" "app_server" {
   subnet_id              = aws_subnet.private_subnet.id
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
-  # File provisioner to put start_app.sh directly on app server
-  provisioner "file" {
-    source      = "scripts/start_app.sh"
-    destination = "/home/ubuntu/start_app.sh"
-    
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = self.private_ip
-    }
-  }
-  
-  # Make script executable
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /home/ubuntu/start_app.sh"]
-    
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = self.private_ip
-    }
-  }
+  # Use user_data to create the file during boot
+  user_data = templatefile("scripts/app_server_setup.sh", {
+    start_app_script_content = file("scripts/start_app.sh")  # Inject file content
+  })
 
   depends_on = [aws_route_table_association.private_rta]
 
