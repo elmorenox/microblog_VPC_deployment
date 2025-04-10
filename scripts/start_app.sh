@@ -50,7 +50,7 @@ echo "ADMINS=your-email@example.com" >> /home/ubuntu/microblog/.env
 echo "LANGUAGES=en,es" >> /home/ubuntu/microblog/.env
 echo "MS_TRANSLATOR_KEY=" >> /home/ubuntu/microblog/.env
 echo "ELASTICSEARCH_URL=" >> /home/ubuntu/microblog/.env
-echo "REDIS_URL=redis://" >> /home/ubuntu/microblog/.env
+echo "REDIS_URL=redis:///" >> /home/ubuntu/microblog/.env
 
 if [ -f "/home/ubuntu/microblog/.env" ]; then
   echo ".env file created successfully"
