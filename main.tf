@@ -289,7 +289,7 @@ resource "aws_instance" "app_server" {
 
   # Use user_data to create the file during boot
   user_data = templatefile("scripts/app_server_setup.sh", {
-    start_app_script_content = file("scripts/start_app.sh")  # Inject file content
+    start_app_script_content = file("scripts/start_app.sh")
   })
 
   depends_on = [aws_route_table_association.private_rta]
