@@ -35,12 +35,6 @@ variable "ec2_ami" {
   default     = "ami-053b0d53c279acc90" # Ubuntu 22.04 LTS
 }
 
-variable "github_repo" {
-  description = "GitHub repository URL"
-  type        = string
-  default     = "https://github.com/elmorenox/microblog_VPC_deployment.git"
-}
-
 variable "aws_access_key" {
   description = "AWS Access Key"
   type        = string

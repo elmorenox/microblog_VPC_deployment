@@ -22,6 +22,25 @@ sudo unzip dependency-check-6.5.3-release.zip
 sudo chmod -R 755 /opt/dependency-check
 sudo chown -R jenkins:jenkins /opt/dependency-check
 
+# Configure Dependency Check Tool in Jenkins
+echo "Configuring Dependency Check Tool in Jenkins..."
+sudo tee /var/lib/jenkins/org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation.xml > /dev/null << 'EOL'
+<?xml version='1.1' encoding='UTF-8'?>
+<org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation_-DescriptorImpl plugin="dependency-check-jenkins-plugin@5.6.0">
+  <installations class="org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation-array">
+    <org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation>
+      <name>DP-Check</name>
+      <home>/opt/dependency-check</home>
+      <properties/>
+    </org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation>
+  </installations>
+</org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation_-DescriptorImpl>
+EOL
+
+# Set proper permissions for the configuration file
+sudo chown jenkins:jenkins /var/lib/jenkins/org.jenkinsci.plugins.DependencyCheck.tools.DependencyCheckInstallation.xml
+
+
 # Return to original directory
 cd $ORIGINAL_DIR
 
@@ -96,7 +115,7 @@ sed "s|https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git|$GITHUB_REP
       <jenkins.branch.BranchSource>
         <source class="jenkins.plugins.git.GitSCMSource" plugin="git@4.11.0">
           <id>1234567890</id>
-          <remote>https://github.com/YOUR_USERNAME/microblog_VPC_deployment.git</remote>
+          <remote>https://github.com/elmorenox/microblog_VPC_deployment.git</remote>
           <credentialsId></credentialsId>
           <traits>
             <jenkins.plugins.git.traits.BranchDiscoveryTrait/>

@@ -1,8 +1,5 @@
 pipeline {
   agent any
-  environment {
-    WEB_SERVER_IP = '54.145.48.96'
-  }
   stages {
         stage ('Build') {
             steps {
@@ -50,7 +47,7 @@ pipeline {
         stage ('Deploy') {
             steps {
                 sh """#!/bin/bash
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@${WEB_SERVER_IP} \
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@10.0.1.13  \
                 '/home/ubuntu/setup.sh'
                 """
             }

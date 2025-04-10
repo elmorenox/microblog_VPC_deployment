@@ -266,6 +266,7 @@ resource "aws_instance" "web_server" {
   key_name               = var.ssh_key_name
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  private_ip = "10.0.1.100" 
 
   user_data = templatefile("scripts/web_server_setup.sh", {
     app_server_ip = aws_instance.app_server.private_ip,
@@ -286,6 +287,7 @@ resource "aws_instance" "app_server" {
   key_name               = var.ssh_key_name
   subnet_id              = aws_subnet.private_subnet.id
   vpc_security_group_ids = [aws_security_group.app_sg.id]
+  private_ip             = "10.0.2.100"
 
   # Use user_data to create the file during boot
   user_data = templatefile("scripts/app_server_setup.sh", {
