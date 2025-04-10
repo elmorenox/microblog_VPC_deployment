@@ -20,7 +20,8 @@ sudo cp -r prometheus-2.37.0.linux-amd64/consoles /etc/prometheus
 sudo cp -r prometheus-2.37.0.linux-amd64/console_libraries /etc/prometheus
 rm -rf prometheus-2.37.0.linux-amd64*
 
-# Create Prometheus configuration
+# Create Prometheus configuration with hardcoded app server IP
+# Modify the prometheus.yml section:
 cat > /tmp/prometheus.yml << 'EOL'
 global:
   scrape_interval: 15s
@@ -30,13 +31,16 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
   
-  - job_name: 'application_server'
+  # Remove the flask_app job if you're not instrumenting the app
+  # - job_name: 'flask_app'
+  #   static_configs:
+  #     - targets: ['10.0.2.100:5000']
+  
+  - job_name: 'node_exporter'
     static_configs:
-      - targets: ['${app_server_ip}:5000']
+      - targets: ['10.0.2.100:9100', 'localhost:9100']
 EOL
 
-# Replace application server IP
-sed -i "s/\${app_server_ip}/$(cat /home/ubuntu/app_server_ip.txt || echo "${app_server_ip}")/g" /tmp/prometheus.yml
 sudo cp /tmp/prometheus.yml /etc/prometheus/prometheus.yml
 
 # Create Prometheus service
@@ -67,6 +71,37 @@ tar -zxvf grafana-9.0.5.linux-amd64.tar.gz
 sudo mv grafana-9.0.5 /opt/grafana
 rm grafana-9.0.5.linux-amd64.tar.gz
 
+# Configure Grafana datasources and dashboards
+sudo mkdir -p /opt/grafana/conf/provisioning/{datasources,dashboards}
+
+# Create a datasource provisioning file
+cat > /tmp/prometheus_datasource.yml << 'EOL'
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+EOL
+sudo cp /tmp/prometheus_datasource.yml /opt/grafana/conf/provisioning/datasources/
+
+# Create a basic dashboard provisioning file
+cat > /tmp/dashboard_provider.yml << 'EOL'
+apiVersion: 1
+providers:
+  - name: 'Default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /opt/grafana/conf/provisioning/dashboards
+EOL
+sudo cp /tmp/dashboard_provider.yml /opt/grafana/conf/provisioning/dashboards/
+
 # Create Grafana service
 cat > /tmp/grafana.service << 'EOL'
 [Unit]
@@ -86,30 +121,16 @@ EOL
 
 sudo cp /tmp/grafana.service /etc/systemd/system/grafana.service
 
-# Start services
-sudo systemctl daemon-reload
-sudo systemctl enable prometheus
-sudo systemctl start prometheus
-sudo systemctl enable grafana
-sudo systemctl start grafana
+# Set up Node Exporter for local monitoring
+echo "Setting up Node Exporter for local monitoring..."
+if ! command -v node_exporter &> /dev/null; then
+  cd /tmp
+  wget https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
+  tar -xvf node_exporter-1.3.1.linux-amd64.tar.gz
+  sudo cp node_exporter-1.3.1.linux-amd64/node_exporter /usr/local/bin/
+  rm -rf node_exporter-1.3.1.linux-amd64*
 
-# Create a simple Node Exporter installation script for the application server
-cat > /tmp/node_exporter_install.sh << 'EOL'
-#!/bin/bash
-# This script installs Node Exporter on the application server
-
-# Update package lists
-sudo apt update
-
-# Download and install Node Exporter
-cd /tmp
-wget https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
-tar -xvf node_exporter-1.3.1.linux-amd64.tar.gz
-sudo cp node_exporter-1.3.1.linux-amd64/node_exporter /usr/local/bin/
-rm -rf node_exporter-1.3.1.linux-amd64*
-
-# Create Node Exporter service
-cat > /tmp/node_exporter.service << 'INNEREOF'
+  sudo tee /etc/systemd/system/node_exporter.service > /dev/null << 'EOF'
 [Unit]
 Description=Node Exporter
 Wants=network-online.target
@@ -121,19 +142,18 @@ ExecStart=/usr/local/bin/node_exporter
 
 [Install]
 WantedBy=multi-user.target
-INNEREOF
+EOF
 
-sudo cp /tmp/node_exporter.service /etc/systemd/system/node_exporter.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable node_exporter
+  sudo systemctl start node_exporter
+fi
 
-# Start Node Exporter service
+# Start services
 sudo systemctl daemon-reload
-sudo systemctl enable node_exporter
-sudo systemctl start node_exporter
-EOL
-
-chmod +x /tmp/node_exporter_install.sh
-
-# Save this script to send to the application server later
-cp /tmp/node_exporter_install.sh /home/ubuntu/node_exporter_install.sh
+sudo systemctl enable prometheus
+sudo systemctl start prometheus
+sudo systemctl enable grafana
+sudo systemctl start grafana
 
 echo "Monitoring server setup completed"

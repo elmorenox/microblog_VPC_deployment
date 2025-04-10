@@ -32,7 +32,7 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-pip install gunicorn pymysql cryptography python-dotenv
+pip install gunicorn pymysql cryptography python-dotenv prometheus-flask-exporter
 
 # Create logs directory
 mkdir -p logs
@@ -72,7 +72,7 @@ echo "Gunicorn server started with PID $(pgrep -f gunicorn)"
 pkill -f gunicorn || echo "No gunicorn processes running"
 
 # Start the application with gunicorn in the background
-gunicorn -b 0.0.0.0:5000 --access-logfile - --error-logfile - microblog:app &
+gunicorn -b 0.0.0.0:5000 --access-logfile /home/ubuntu/microblog/logs/access.log --error-logfile /home/ubuntu/microblog/logs/error.log microblog:app --daemon
 
 # Check if the application is running
 sleep 10
@@ -81,4 +81,33 @@ if pgrep -f gunicorn > /dev/null; then
 else
   echo "Failed to start the application"
   exit 1
+fi
+
+# Install Node Exporter for system monitoring
+echo "Setting up Node Exporter for Prometheus monitoring..."
+if ! command -v node_exporter &> /dev/null; then
+  cd /tmp
+  wget https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
+  tar -xvf node_exporter-1.3.1.linux-amd64.tar.gz
+  sudo cp node_exporter-1.3.1.linux-amd64/node_exporter /usr/local/bin/
+  rm -rf node_exporter-1.3.1.linux-amd64*
+
+  sudo tee /etc/systemd/system/node_exporter.service > /dev/null << 'EOF'
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable node_exporter
+  sudo systemctl start node_exporter
+  echo "Node Exporter installed and started"
 fi
