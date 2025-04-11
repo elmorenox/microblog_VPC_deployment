@@ -1,82 +1,154 @@
-# Kura Labs Cohort 5- Deployment Workload 4
+# Microblog VPC Deployment
 
+## PURPOSE
+The purpose of this workload is to create a robust, secure cloud infrastructure for deploying a Flask microblog application using infrastructure-as-code and CI/CD principles. This project demonstrates how to properly separate concerns across a network architecture by:
 
----
+1. Placing web-facing components in public subnets
+2. Securing application and database components in private subnets
+3. Implementing a continuous integration and deployment pipeline
+4. Setting up monitoring for the deployed application
 
+By completing this project, I've gained hands-on experience with deploying applications in a production-ready environment using AWS services and Terraform for infrastructure provisioning.
 
+## STEPS
 
-## Provisioning Server Infrastructure:
+### 1. Infrastructure Provisioning with Terraform
+I used Terraform to provision all the required infrastructure components in AWS. This approach ensures that our infrastructure is reproducible, maintainable, and can be version-controlled.
 
-Welcome to Deployment Workload 4! In Workload 3 We shifted to infrastucture provisioned by us and learned about what goes into deploying an application.  That was hardly an effective system though.  Let's build out our infrastructure a little more.
+Key components created:
+- Custom VPC with public and private subnets
+- Internet Gateway and NAT Gateway for connectivity
+- Security groups to control network traffic
+- EC2 instances for different application components
 
-Be sure to document each step in the process and explain WHY each step is important to the pipeline.
+**Why important:** Infrastructure-as-code allows for consistent deployments, reduces human error, and enables version control for infrastructure changes.
 
-## Instructions
+### 2. Setting Up the Jenkins Server
+I created a t3.medium EC2 instance in the public subnet to host Jenkins, our CI/CD server. This required:
+- Installing Jenkins and necessary plugins
+- Configuring Jenkins with SSH keys for deployment
+- Setting up the OWASP Dependency Check plugin
 
-1. Clone this repo to your GitHub account. IMPORTANT: Make sure that the repository name is "microblog_VPC_deployment"
+**Why important:** A dedicated CI/CD server automates building, testing and deployment processes, ensuring consistent and reliable deployments.
 
-2. In the AWS console, create a custom VPC with one availability zome, a public and a private subnet.  There should be a NAT Gateway in 1 AZ and no VPC endpoints.  DNS hostnames and DNS resolution should be selected.
+### 3. Configuring the Web Server
+I set up a t3.micro EC2 instance in the public subnet to serve as our web server with:
+- Nginx installation and configuration
+- Reverse proxy setup to forward requests to the application server
+- SSH key configuration for secure communication with the app server
 
-3. Navigate to subnets and edit the settings of the public subet you created to auto assign public IPv4 addresses.
+**Why important:** The web server acts as a gateway, handling external web traffic and forwarding only legitimate requests to our application server in the private subnet, adding a layer of security.
 
-4. In the Default VPC, create an EC2 t3.medium called "Jenkins" and install Jenkins onto it.  
+### 4. Setting Up the Application Server
+I provisioned a t3.micro EC2 instance in the private subnet where our Flask application runs:
+- Created start_app.sh script to handle application deployment
+- Configured necessary dependencies for the Flask application
+- Set up environment variables and database connection
 
-5. Create an EC2 t3.micro called "Web_Server" In the PUBLIC SUBNET of the Custom VPC, and create a security group with ports 22 and 80 open.  
+**Why important:** Keeping the application server in a private subnet protects it from direct internet access, reducing the attack surface.
 
-6. Create an EC2 t3.micro called "Application_Server" in the PRIVATE SUBNET of the Custom VPC,  and create a security group with ports 22 and 5000 open. Make sure you create and save the key pair to your local machine.
+### 5. Creating Deployment Scripts
+I created two key scripts to automate the deployment process:
+- `start_app.sh`: Runs on the application server to set up and start the Flask application
+- `setup.sh`: Runs on the web server to initiate deployment on the application server
 
-7. SSH into the "Jenkins" server and run `ssh-keygen`. Copy the public key that was created and append it into the "authorized_keys" file in the Web Server. 
+**Why important:** These scripts automate the deployment process, making it consistent and repeatable while reducing human error.
 
-IMPORTANT: Test the connection by SSH'ing into the 'Web_Server' from the 'Jenkins' server.  This will also add the web server instance to the "list of known hosts"
+### 6. Creating the CI/CD Pipeline with Jenkins
+I implemented a Jenkinsfile that defines a complete pipeline:
+- Build stage: Sets up the Python environment and installs dependencies
+- Test stage: Runs pytest to validate application functionality
+- Security scan: Uses OWASP Dependency Check to identify vulnerabilities
+- Deploy stage: Executes the deployment scripts on target servers
 
-Question: What does it mean to be a known host?
+**Why important:** The pipeline ensures that code changes are automatically built, tested, scanned for vulnerabilities, and deployed, maintaining quality and security throughout the development lifecycle.
 
-8. In the Web Server, install NginX and modify the "sites-enabled/default" file so that the "location" section reads as below:
-```
-location / {
-proxy_pass http://<private_IP>:5000;
-proxy_set_header Host $host;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-}
-```
-IMPORTANT: Be sure to replace `<private_IP>` with the private IP address of the application server. Run the command `sudo nginx -t` to verify. Restart NginX afterward.
+### 7. Setting Up Monitoring
+I deployed Prometheus and Grafana on a separate t3.micro instance to monitor our application:
+- Configured Prometheus to collect metrics from the application server
+- Set up Grafana dashboards to visualize performance and health metrics
 
-9. Copy the key pair (.pem file) of the "Application_Server" to the "Web_Server".  How you choose to do this is up to you.  (Best practice would be to SCP from your local machine into the Jenkins server but if not, it is possible to nano a new file and copy/paste the contents of the .pem file into it.  MAKE SURE TO INCLUDE EVERYTHING FROM -----BEGIN RSA PRIVATE KEY----- to -----END RSA PRIVATE KEY----- including a new line afterwards if you chose this route)
+**Why important:** Monitoring provides visibility into the application's performance and health, enabling proactive identification and resolution of issues.
 
-IMPORTANT: Test the connection by SSH'ing into the "Application_Server" from the "Web_Server".
+## SYSTEM DESIGN DIAGRAM
 
-10. Create scripts.  2 scripts are required for this Workload and outlined below:
+![System Architecture Diagram](Diagram.jpg)
 
-a) a "start_app.sh" script that will run on the application server that will set up the server so that has all of the dependencies that the application needs, clone the GH repository, install the application dependencies from the requirements.txt file as well as [gunicorn, pymysql, cryptography], set ENVIRONMENTAL Variables, flask commands, and finally the gunicorn command that will serve the application IN THE BACKGROUND
+The diagram illustrates the network architecture and components of our deployment:
+- VPC with public and private subnets
+- Jenkins, web server, and monitoring server in the public subnet
+- Application server with SQLite database in the private subnet
+- Network connections and security group configurations
 
-b) a "setup.sh" script that will run in the "Web_Server" that will SSH into the "Application_Server" to run the "start_app.sh" script.
+## ISSUES/TROUBLESHOOTING
 
-(HINT: run the scripts with "source" to avoid issues)
+During the implementation of this project, I encountered and resolved several challenges:
 
-Question: What is the difference between running scripts with the source command and running the scripts either by changing the permissions or by using the 'bash' interpreter?
+1. **Circular Dependency in Terraform**
+   - **Issue**: Creating a circular dependency between web_server and app_server resources
+   - **Solution**: Used a null_resource for provisioning after both instances were created, breaking the dependency cycle
 
-IMPORTANT: Save these scripts in your GitHub Respository in a "scripts" folder.
+2. **SSH Connection Issues**
+   - **Issue**: Difficulty connecting from Jenkins to the web server and from web server to app server
+   - **Solution**: Verified key permissions (chmod 600), added proper security group rules, and ensured the NAT gateway was configured correctly
 
-11. Create a Jenkinsfile that will 'Build' the application, 'Test' the application by running a pytest (you can re-use the test from WL3 or challenge yourself to create a new one), run the OWASP dependency checker, and then "Deploy" the application by SSH'ing into the "Web_Server" to run "setup.sh" (which would then run "start_app.sh").
+3. **Jenkins Pipeline Failures**
+   - **Issue**: Test failures due to missing dependencies
+   - **Solution**: Modified the Build stage to properly set up a Python virtual environment and install all required dependencies
 
-IMPORTANT/QUESTION/HINT: How do you get the scripts onto their respective servers if they are saved in the GitHub Repo?  Do you SECURE COPY the file from one server to the next in the pipeline? Do you C-opy URL the file first as a setup? How much of this process is manual vs. automated?
+4. **Nginx Configuration**
+   - **Issue**: Web server not properly forwarding requests to the application
+   - **Solution**: Corrected the proxy_pass configuration with the proper private IP address and ensured proper header forwarding
 
-Question 2: In WL3, a method of "keeping the process alive" after a Jenkins stage completed was necessary.  Is it in this Workload? Why or why not?
+5. **OWASP Dependency Check Setup**
+   - **Issue**: Plugin not finding the dependency-check installation
+   - **Solution**: Properly configured the tool location in Jenkins and ensured proper permissions
 
-12. Create a MultiBranch Pipeline and run the build. IMPORTANT: Make sure the name of the pipeline is: "workload_4".  Check to see if the application can be accessed from the public IP address of the "Web_Server".
+## OPTIMIZATION
 
-13. If all is well, create an EC2 t3.micro called "Monitoring" with Prometheus and Grafana and configure it so that it can collect metrics on the application server.
+### Advantages of Separating Deployment from Production
+Separating deployment from production environments provides several benefits:
+1. **Risk Reduction**: Changes can be tested in a deployment environment before affecting production
+2. **Quality Assurance**: Comprehensive testing in a staging environment catches issues before they reach users
+3. **Performance Testing**: Load and stress testing can be performed without impacting real users
+4. **Training**: New team members can practice deployments without fear of breaking production
 
-14. Document! All projects have documentation so that others can read and understand what was done and how it was done. Create a README.md file in your repository that describes:
+### Does This Infrastructure Address These Concerns?
+This infrastructure partially addresses these concerns by:
+- Separating components with different security requirements (public vs. private subnets)
+- Implementing automated testing and security scanning in the pipeline
+- Using infrastructure-as-code for consistent deployments
 
-	  a. The "PURPOSE" of the Workload,
+However, it lacks a complete staging environment that mirrors production.
 
-  	b. The "STEPS" taken (and why each was necessary/important),
-    
-  	c. A "SYSTEM DESIGN DIAGRAM" that is created in draw.io (IMPORTANT: Save the diagram as "Diagram.jpg" and upload it to the root directory of the GitHub repo.),
+### Is This a "Good System"?
+While this system implements many best practices like:
+- Network segmentation (public/private subnets)
+- Automated CI/CD pipeline
+- Security scanning
+- Monitoring
 
-	  d. "ISSUES/TROUBLESHOOTING" that may have occured,
+It has several limitations:
+- Single points of failure in each component
+- No high availability or load balancing
+- SQLite database (not ideal for production)
+- Limited scalability
 
-  	e. An "OPTIMIZATION" section for that answers the questions: What are the advantages of separating the deployment environment from the production environment?  Does the infrastructure in this workload address these concerns?  Could the infrastructure created in this workload be considered that of a "good system"?  Why or why not?  How would you optimize this infrastructure to address these issues?
+### Optimization Recommendations
+To optimize this infrastructure, I would:
+1. **Implement High Availability**: Deploy redundant instances across multiple availability zones
+2. **Add Load Balancing**: Use an Application Load Balancer in front of multiple web servers
+3. **Upgrade Database**: Replace SQLite with a managed database service like RDS
+4. **Add Auto Scaling**: Implement auto-scaling groups for web and application tiers
+5. **Create Staging Environment**: Add a complete staging environment that mirrors production
+6. **Implement Blue-Green Deployments**: For zero-downtime deployments
+7. **Add WAF and CloudFront**: For improved security and performance
+8. **Implement Secrets Management**: Use AWS Secrets Manager or Parameter Store for sensitive data
 
-    f. A "CONCLUSION" statement as well as any other sections you feel like you want to include.
+## CONCLUSION
+
+This project successfully demonstrates deploying a Flask application in a secure AWS infrastructure using modern DevOps practices. The separation of components between public and private subnets, implementation of a CI/CD pipeline, and addition of monitoring create a solid foundation for application deployment.
+
+The experience gained from this project provides valuable insight into cloud architecture design, infrastructure-as-code, and DevOps practices. While the current implementation has limitations in terms of high availability and scalability, it serves as an excellent learning opportunity and starting point for more advanced infrastructure designs.
+
+For a production environment, the optimization recommendations outlined above would need to be implemented to ensure reliability, scalability, and security. Nonetheless, this project represents a significant step forward from traditional deployment methods and demonstrates the value of infrastructure-as-code and CI/CD pipelines in modern application deployment.

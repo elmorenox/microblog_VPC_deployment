@@ -1,0 +1,39 @@
+{
+  "Resources": [
+    {
+      "Type": "VPC",
+      "Count": 1
+    },
+    {
+      "Type": "AvailabilityZone",
+      "Count": 1
+    },
+    {
+      "Type": "Subnet",
+      "Subtype": "Public",
+      "Count": 1
+    },
+    {
+      "Type": "Subnet",
+      "Subtype": "Private",
+      "Count": 1
+    },
+    {
+      "Type": "Compute",
+      "Subtype": "EC2",
+      "InstanceType": "t3.medium",
+      "Count": 1
+    },
+    {
+      "Type": "Compute",
+      "Subtype": "EC2",
+      "InstanceType": "t3.micro",
+      "Count": 3
+    },
+    {
+      "Type": "Database",
+      "Subtype": "SQLite",
+      "Count": 1
+    }
+  ]
+}
