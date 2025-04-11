@@ -69,6 +69,12 @@ cd /tmp
 wget https://dl.grafana.com/oss/release/grafana-9.0.5.linux-amd64.tar.gz
 tar -zxvf grafana-9.0.5.linux-amd64.tar.gz
 sudo mv grafana-9.0.5 /opt/grafana
+# Copy default configuration files
+sudo mkdir -p /opt/grafana/conf
+sudo cp -r /opt/grafana/grafana-9.0.5/conf/* /opt/grafana/conf/
+
+# Set appropriate permissions
+sudo chown -R ubuntu:ubuntu /opt/grafana
 rm grafana-9.0.5.linux-amd64.tar.gz
 
 # Configure Grafana datasources and dashboards
@@ -121,8 +127,6 @@ ExecStart=/opt/grafana/grafana-9.0.5/bin/grafana-server \
 [Install]
 WantedBy=multi-user.target
 EOL
-
-sudo cp /tmp/grafana.service /etc/systemd/system/grafana.service
 
 sudo cp /tmp/grafana.service /etc/systemd/system/grafana.service
 
