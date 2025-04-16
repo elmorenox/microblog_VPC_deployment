@@ -47,7 +47,7 @@ pipeline {
         stage ('Deploy') {
             steps {
                 sh """#!/bin/bash
-                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@10.0.1.13  \
+                ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa ubuntu@10.0.1.100  \
                 '/home/ubuntu/setup.sh'
                 """
             }
